@@ -98,45 +98,60 @@ cy.layout({
 
 // Fills each node table with the nodes and edges
 nodes.forEach((node) => {
-	tables[node] = {};
-	nodes.forEach((innerNode) => {
-		tables[node][innerNode] = node === innerNode ? 0 : "∞";
-	});
-});
+	let table = [];
 
-edges.forEach((edge) => {
-	const [source, target] = edge.nodes;
-	tables[source][target] = edge.cost;
-	tables[target][source] = edge.cost; // Include this line for bidirectional edges
+	nodes.forEach((innerNode) => {
+		table[innerNode] = [];
+		nodes.forEach((columnNode) => {
+			table[innerNode][columnNode] = innerNode === node && columnNode === node ? 0 : "∞";
+		});
+	});
+
+	let filteredEdges = edges.filter((edge) => edge.nodes.includes(node));
+	filteredEdges.forEach((edge) => {
+		const [source, target] = edge.nodes;
+		if (source == node) {
+			table[source][target] = edge.cost;
+		} else {
+			table[target][source] = edge.cost; // Include this line for bidirectional edges
+		}
+	});
+	tables.push({ table_node: node, table });
 });
 
 const tablesDiv = document.getElementById("tables");
+tables.forEach((table) => {
+	const table_node = table.table_node;
+	const table_data = table.table;
 
-nodes.forEach((node) => {
-	const table = document.createElement("table");
-	const headerRow = table.insertRow();
-	const headerCell = headerRow.insertCell();
-	headerCell.textContent = node;
-	headerCell.style.fontWeight = "bold";
-	headerCell.style.backgroundColor = "#31304D";
-	headerCell.style.color = "#F0ECE5";
+	const table_element = document.createElement("table");
+	const header_row = table_element.insertRow();
+	const header_cell = header_row.insertCell();
+	header_cell.textContent = table_node;
+	header_cell.style.fontWeight = "bold";
+	header_cell.style.backgroundColor = "#31304D";
+	header_cell.style.color = "#F0ECE5";
 
 	nodes.forEach((innerNode) => {
-		const cell = headerRow.insertCell();
+		const cell = header_row.insertCell();
 		cell.textContent = innerNode;
 	});
 
 	nodes.forEach((innerNode) => {
-		const row = table.insertRow();
+		const row = table_element.insertRow();
 		const cell = row.insertCell();
+		if (innerNode == table_node) {
+			row.style.backgroundColor = "#31304D";
+			row.style.color = "#F0ECE5";
+		}
 		cell.textContent = innerNode;
 
 		nodes.forEach((columnNode) => {
-			const cost = tables[innerNode][columnNode];
+			const cost = table_data[innerNode][columnNode];
 			const cell = row.insertCell();
 			cell.textContent = cost;
 		});
 	});
 
-	tablesDiv.appendChild(table);
+	tablesDiv.appendChild(table_element);
 });
