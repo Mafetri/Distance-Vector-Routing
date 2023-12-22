@@ -71,6 +71,23 @@ nodes.forEach((node) => {
 // Graphs each node table
 visual_interface.graph_tables(tables, nodes);
 
+function deep_copy(object) {
+	let copy = Array.isArray(object) ? [] : {};
+	for (let key in object) {
+		let v = object[key];
+		if (v) {
+			if (typeof v === "object") {
+				copy[key] = deep_copy(v);
+			} else {
+				copy[key] = v;
+			}
+		} else {
+			copy[key] = v;
+		}
+	}
+	return copy;
+}
+
 // Send vector to neighbors
 function send_vector_to_neighbors(tables, nodes) {
 	nodes.forEach((node) => {
@@ -80,7 +97,7 @@ function send_vector_to_neighbors(tables, nodes) {
 			let neighborNode = neighbor.nodes.find((neighborNode) => neighborNode !== node);
 			let neighborTable = tables.find((table) => table.table_node === neighborNode).table;
 			let vector = table[node];
-			neighborTable[node] = vector;
+			neighborTable[node] = deep_copy(vector);
 		});
 	});
 	visual_interface.empty_tables();
@@ -97,10 +114,13 @@ function bellman_ford_equation(table, node) {
 				table[node][target_node],
 				// Minimum other path cost to target node
 				targets_nodes.reduce((accumulative_min_distance, intermediate_node) => {
-					// Minimum distance between the last min distance and the sum of the distance from the node to the 
+					// Minimum distance between the last min distance and the sum of the distance from the node to the
 					// intermediate node and the distance from the intermediate node to the target node
-					return Math.min(accumulative_min_distance, table[node][intermediate_node] + table[intermediate_node][target_node]);
-				}, table[node][target_node])
+					return Math.min(
+						accumulative_min_distance,
+						table[node][intermediate_node] + table[intermediate_node][target_node],
+					);
+				}, table[node][target_node]),
 			);
 		}
 	});
