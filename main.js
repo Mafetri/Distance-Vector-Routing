@@ -50,9 +50,9 @@ nodes.forEach((node) => {
 	let table = [];
 
 	nodes.forEach((innerNode) => {
-		table[innerNode] = [];
+		table[innerNode] = {};
 		nodes.forEach((columnNode) => {
-			table[innerNode][columnNode] = innerNode === node && columnNode === node ? 0 : "∞";
+			table[innerNode][columnNode] = innerNode === node && columnNode === node ? 0 : Number.POSITIVE_INFINITY;
 		});
 	});
 
@@ -82,18 +82,44 @@ function send_vector_to_neighbors(tables, nodes) {
 			let vector = table[node];
 			neighborTable[node] = vector;
 		});
-		bellman_ford_equation(table, node);
 	});
 	visual_interface.empty_tables();
 	visual_interface.graph_tables(tables, nodes);
 }
 
-function bellman_ford_equation (table, node) {
-	console.log(table);
+function bellman_ford_equation(table, node) {
+	const targets_nodes = Object.keys(table[node]);
+	targets_nodes.forEach((target_node) => {
+		if (target_node !== node) {
+			// Min of the actual cost to the target node and the cost of the minimum other path cost to the target node
+			table[node][target_node] = Math.min(
+				// Actual cost to target node
+				table[node][target_node],
+				// Minimum other path cost to target node
+				targets_nodes.reduce((accumulative_min_distance, intermediate_node) => {
+					// Minimum distance between the last min distance and the sum of the distance from the node to the 
+					// intermediate node and the distance from the intermediate node to the target node
+					return Math.min(accumulative_min_distance, table[node][intermediate_node] + table[intermediate_node][target_node]);
+				}, table[node][target_node])
+			);
+		}
+	});
 }
 
-// console.log(tables);
+let flag = 0;
 document.getElementById("start_dv_algorithm").addEventListener("click", () => {
-	send_vector_to_neighbors(tables, nodes);
-	document.getElementById("start_dv_algorithm").innerText = "Next";
+	if (flag == 0) {
+		send_vector_to_neighbors(tables, nodes);
+		document.getElementById("start_dv_algorithm").innerText = "Bellman";
+		flag = 1;
+	} else {
+		nodes.forEach((node) => {
+			let table = tables.find((table) => table.table_node === node).table;
+			bellman_ford_equation(table, node);
+		});
+		document.getElementById("start_dv_algorithm").innerText = "Send";
+		flag = 0;
+	}
+	visual_interface.empty_tables();
+	visual_interface.graph_tables(tables, nodes);
 });
