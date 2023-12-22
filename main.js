@@ -70,3 +70,30 @@ nodes.forEach((node) => {
 
 // Graphs each node table
 visual_interface.graph_tables(tables, nodes);
+
+// Send vector to neighbors
+function send_vector_to_neighbors(tables, nodes) {
+	nodes.forEach((node) => {
+		let table = tables.find((table) => table.table_node === node).table;
+		let neighbors = edges.filter((edge) => edge.nodes.includes(node));
+		neighbors.forEach((neighbor) => {
+			let neighborNode = neighbor.nodes.find((neighborNode) => neighborNode !== node);
+			let neighborTable = tables.find((table) => table.table_node === neighborNode).table;
+			let vector = table[node];
+			neighborTable[node] = vector;
+		});
+		bellman_ford_equation(table, node);
+	});
+	visual_interface.empty_tables();
+	visual_interface.graph_tables(tables, nodes);
+}
+
+function bellman_ford_equation (table, node) {
+	console.log(table);
+}
+
+// console.log(tables);
+document.getElementById("start_dv_algorithm").addEventListener("click", () => {
+	send_vector_to_neighbors(tables, nodes);
+	document.getElementById("start_dv_algorithm").innerText = "Next";
+});
