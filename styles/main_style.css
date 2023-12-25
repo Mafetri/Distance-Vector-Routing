@@ -41,7 +41,7 @@ p {
 
 #tables {
 	width: 40%;
-	height: 95%;
+	height: 90%;
 	position: absolute;
 	top: 0px;
 	right: 0px;
@@ -85,4 +85,26 @@ tr:first-child,
 td:first-child {
 	background-color: var(--gray);
 	color: #161a30;
+}
+
+#buttons-box {
+	position: absolute; 
+	bottom: 0; 
+	width: 100%;
+	background-color: var(--white);
+	padding: 0.2em;
+	box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.7);
+	display: flex;
+	justify-content: space-evenly;
+}
+
+button {
+	background-color: var(--dark_color);
+	color: var(--white);
+	border: none;
+	border-radius: 5px;
+	padding: 0.5em;
+	font-size: 16px;
+	cursor: pointer;
+	min-width: 20%;
 }

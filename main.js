@@ -179,6 +179,7 @@ document.getElementById("start_dv_algorithm").addEventListener("click", () => {
         }, 1000 * index); // Use index to stagger the timeouts
     });
 	document.getElementById("start_dv_algorithm").style.display = "none";
+	document.getElementById("reset_button").style.display = "block";
 	document.getElementById("run_next_node").style.display = "block";
 });
 
