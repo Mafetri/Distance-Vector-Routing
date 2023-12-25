@@ -99,6 +99,7 @@ function broadcast_vector (vector, node) {
 		let packaged_vector = {
 			from: node,
 			to: neighbor_node,
+			date: Date.now(),
 			vector: deep_copy(vector),
 		}
 		vector_passes.push(packaged_vector);
@@ -123,14 +124,32 @@ function update_vectors (table, vectors, node) {
 	});
 }
 
+function discard_repeated_old_vectors(vectors) {
+    const uniqueVectors = {};
+
+    vectors.forEach((vector) => {
+        const existingVector = uniqueVectors[vector.from];
+
+        if (!existingVector || existingVector.date < vector.date) {
+            uniqueVectors[vector.from] = vector;
+        }
+    });
+
+    // Convert the object back to an array
+    const filteredVectors = Object.values(uniqueVectors);
+
+    return filteredVectors;
+}
+
 // Gives the table of the node
 function get_my_table (node) {
 	return tables.find((table) => table.table_node === node).table;
 }
 
-// Updates the node vector applying the Bellman-Ford equation
+// Updates the node vector applying the Bellman-Ford equation (returns True when the vector has changed)
 function bellman_ford_equation(table, node) {
 	const targets_nodes = Object.keys(table[node]);
+	const before_vector = deep_copy(table[node]);
 	targets_nodes.forEach((target_node) => {
 		if (target_node !== node) {
 			// Min of the actual cost to the target node and the cost of the minimum other path cost to the target node
@@ -149,33 +168,45 @@ function bellman_ford_equation(table, node) {
 			);
 		}
 	});
+	return JSON.stringify(before_vector) !== JSON.stringify(table[node]);
 }
 
 // ======================== DV Algorithm ========================
-let flag = 0;
 document.getElementById("start_dv_algorithm").addEventListener("click", () => {
-	if (flag == 0) {
-		// Sends each vector
-		nodes.forEach((node) => {
+    nodes.forEach((node, index) => {
+        setTimeout(() => {
+            broadcast_vector(get_my_table(node)[node], node);
+        }, 1000 * index); // Use index to stagger the timeouts
+    });
+	document.getElementById("start_dv_algorithm").style.display = "none";
+	document.getElementById("run_next_node").style.display = "block";
+});
+
+let actual_node = 0;
+document.getElementById("run_next_node").addEventListener("click", () => {
+	let node = nodes[actual_node];
+
+	visual_interface.focus_table(node);
+
+	// Receive vectors from neighbors
+	let recv_vectors = recv_vector(node);
+
+	// Update vectors
+	update_vectors(get_my_table(node), discard_repeated_old_vectors(recv_vectors), node);
+
+	let my_table = get_my_table(node);
+	let send_vector = bellman_ford_equation(my_table, node);
+	
+	setTimeout(() => {
+		if(send_vector) {
+			visual_interface.update_vector(node, node, my_table[node]);
 			// Broadcast vector to neighbors
-			broadcast_vector(get_my_table(node)[node], node);
-		});
-		// Receives each vector
-		nodes.forEach((node) => {
-			// Receive vectors from neighbors
-			let recv_vectors = recv_vector(node);
-			// Update vectors
-			update_vectors(get_my_table(node), recv_vectors, node);
-		});
-		document.getElementById("start_dv_algorithm").innerText = "Bellman";
-		flag = 1;
-	} else {
-		nodes.forEach((node) => {
-			let table = tables.find((table) => table.table_node === node).table;
-			bellman_ford_equation(table, node);
-			visual_interface.update_vector(node, node, table[node]);
-		});
-		document.getElementById("start_dv_algorithm").innerText = "Send";
-		flag = 0;
-	}
+			setTimeout(() => {
+				broadcast_vector(get_my_table(node)[node], node);
+			}, 800);
+		}
+	}, 1200);
+
+	actual_node = (actual_node + 1) % nodes.length;
+	document.getElementById("run_next_node").innerHTML = "Run node: " + nodes[actual_node];
 });
