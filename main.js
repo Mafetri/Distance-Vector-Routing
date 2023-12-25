@@ -98,10 +98,9 @@ function send_vector_to_neighbors(tables, nodes) {
 			let neighborTable = tables.find((table) => table.table_node === neighborNode).table;
 			let vector = table[node];
 			neighborTable[node] = deep_copy(vector);
+			visual_interface.update_vector(neighborNode, node, vector);
 		});
 	});
-	visual_interface.empty_tables();
-	visual_interface.graph_tables(tables, nodes);
 }
 
 function bellman_ford_equation(table, node) {
@@ -136,10 +135,9 @@ document.getElementById("start_dv_algorithm").addEventListener("click", () => {
 		nodes.forEach((node) => {
 			let table = tables.find((table) => table.table_node === node).table;
 			bellman_ford_equation(table, node);
+			visual_interface.update_vector(node, node, table[node]);
 		});
 		document.getElementById("start_dv_algorithm").innerText = "Send";
 		flag = 0;
 	}
-	visual_interface.empty_tables();
-	visual_interface.graph_tables(tables, nodes);
 });

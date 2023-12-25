@@ -1,4 +1,10 @@
 /* main_style.css */
+:root{
+	--received_row: #46ba3d;
+	--white: #F0ECE5;
+	--dark_color: #161A30;
+	--gray: #b6bbc4;
+}
 
 body {
 	margin: 0;
@@ -66,6 +72,10 @@ td {
 	padding: 0.5em;
 }
 
+tr {
+	transition: background-color 0.5s ease-in-out;
+}
+
 /* Add a thicker border to the header cells for a horizontal line */
 th {
 	border-bottom: 2px solid #000;
@@ -73,6 +83,6 @@ th {
 
 tr:first-child,
 td:first-child {
-	background-color: #b6bbc4;
+	background-color: var(--gray);
 	color: #161a30;
 }
