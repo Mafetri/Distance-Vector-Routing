@@ -32,7 +32,7 @@ p {
 }
 
 #cy {
-	width: 50%;
+	width: 40%;
 	height: 100%;
 	position: absolute;
 	top: 0px;
@@ -40,7 +40,7 @@ p {
 }
 
 #tables {
-	width: 40%;
+	width: 50%;
 	height: 90%;
 	position: absolute;
 	top: 0px;
@@ -57,14 +57,13 @@ p {
 
 /* Add a border to all table cells */
 table {
-	border: 1px solid #000;
+	border: 1px solid var(--white);
 	width: fit-content;
 	background-color: #f0ece5;
 	border-spacing: 0;
 	height: fit-content;
 	border-radius: 5px;
 	padding: 3px;
-	box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.7);
 }
 
 th,
@@ -72,20 +71,25 @@ td {
 	padding: 0.5em;
 }
 
-tr {
+.vectors_table, .routing_table {
+	border: 2px solid var(--dark_color);
+	padding: 0;
+}
+
+.vectors_table tr {
 	transition: background-color 0.5s ease-in-out;
 }
 
 /* Add a thicker border to the header cells for a horizontal line */
-th {
+.vectors_table th {
 	border-bottom: 2px solid #000;
 }
 
-tr:first-child,
-td:first-child {
+.vectors_table tr:first-child, .vectors_table
+td:first-child, .routing_table th:first-child {
 	background-color: var(--gray);
 	color: #161a30;
-}
+} 
 
 #buttons-box {
 	position: absolute; 
@@ -107,4 +111,27 @@ button {
 	font-size: 16px;
 	cursor: pointer;
 	min-width: 20%;
+}
+
+.node_div{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	box-shadow: 10px 10px 10px rgba(0, 0, 0, 0.7);
+	background-color: var(--white);
+	border-radius: 5px;
+	padding: 0.3em;
+}
+
+.node_tables {
+	display: flex;
+	flex-direction: row;
+	gap: 5px;
+}
+
+.node_title {
+	font-size: 20px;
+	font-weight: bold;
+	color : var(--dark_color);
+	margin: 0;
 }

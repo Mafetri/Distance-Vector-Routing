@@ -42,6 +42,7 @@ let edges = [
 ];
 let tables = [];
 let vector_passes = [];
+let routing_tables = [];
 
 // ======================== Initialization ========================
 // Graphs the network
@@ -70,8 +71,16 @@ nodes.forEach((node) => {
 	tables.push({ table_node: node, table });
 });
 
+nodes.forEach((table_node) => {
+	let routing_table = {};
+	nodes.forEach((innerNode) => {
+		routing_table[innerNode] = '-';
+	});
+	routing_tables.push({ table_node, routing_table });
+});
+
 // Graphs each node table
-visual_interface.graph_tables(tables, nodes);
+visual_interface.graph_tables(tables, nodes, routing_tables);
 
 function deep_copy(object) {
 	let copy = Array.isArray(object) ? [] : {};
