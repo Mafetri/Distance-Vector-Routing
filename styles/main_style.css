@@ -91,6 +91,10 @@ td:first-child, .routing_table th:first-child {
 	color: #161a30;
 } 
 
+.routing_table td {
+	transition: background-color 0.5s ease-in-out;
+}
+
 #buttons-box {
 	position: absolute; 
 	bottom: 0; 
