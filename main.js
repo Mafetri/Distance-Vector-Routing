@@ -52,6 +52,7 @@ visual_interface.graph_network(nodes, edges);
 nodes.forEach((node) => {
 	let table = [];
 
+	// Initialize the table
 	nodes.forEach((innerNode) => {
 		table[innerNode] = {};
 		nodes.forEach((columnNode) => {
@@ -59,6 +60,7 @@ nodes.forEach((node) => {
 		});
 	});
 
+	// Fills the cost to neighbors
 	let filteredEdges = edges.filter((edge) => edge.nodes.includes(node));
 	filteredEdges.forEach((edge) => {
 		const [source, target] = edge.nodes;
@@ -69,14 +71,13 @@ nodes.forEach((node) => {
 		}
 	});
 	tables.push({ table_node: node, table });
-});
 
-nodes.forEach((table_node) => {
+	// Fills the routing table
 	let routing_table = {};
 	nodes.forEach((innerNode) => {
-		routing_table[innerNode] = '-';
+		routing_table[innerNode] = table[node][innerNode] === Number.POSITIVE_INFINITY ? '-' : innerNode;
 	});
-	routing_tables.push({ table_node, routing_table });
+	routing_tables.push({ table_node: node, routing_table})
 });
 
 // Graphs each node table
@@ -156,27 +157,32 @@ function get_my_table (node) {
 }
 
 // Updates the node vector applying the Bellman-Ford equation (returns True when the vector has changed)
-function bellman_ford_equation(table, node) {
+function bellman_ford_equation(table, node, routing_table) {
 	const targets_nodes = Object.keys(table[node]);
 	const before_vector = deep_copy(table[node]);
+
 	targets_nodes.forEach((target_node) => {
 		if (target_node !== node) {
-			// Min of the actual cost to the target node and the cost of the minimum other path cost to the target node
-			table[node][target_node] = Math.min(
-				// Actual cost to target node
-				table[node][target_node],
-				// Minimum other path cost to target node
-				targets_nodes.reduce((accumulative_min_distance, intermediate_node) => {
-					// Minimum distance between the last min distance and the sum of the distance from the node to the
-					// intermediate node and the distance from the intermediate node to the target node
-					return Math.min(
-						accumulative_min_distance,
-						table[node][intermediate_node] + table[intermediate_node][target_node],
-					);
-				}, table[node][target_node]),
-			);
+			// Find the intermediate node that results in the minimum distance
+			let minIntermediateNode = routing_table[target_node];
+			let minDistance = table[node][target_node];
+
+			targets_nodes.forEach((intermediate_node) => {
+				const distance = table[node][intermediate_node] + table[intermediate_node][target_node];
+				if (distance < minDistance) {
+					minDistance = distance;
+					minIntermediateNode = intermediate_node;
+				}
+			});
+
+			// Update the table with the minimum distance
+			table[node][target_node] = Math.min(table[node][target_node], minDistance);
+			
+			// Update the intermediate nodes object
+			routing_table[target_node] = minIntermediateNode;
 		}
 	});
+
 	return JSON.stringify(before_vector) !== JSON.stringify(table[node]);
 }
 
@@ -205,11 +211,13 @@ document.getElementById("run_next_node").addEventListener("click", () => {
 	update_vectors(get_my_table(node), discard_repeated_old_vectors(recv_vectors), node);
 
 	let my_table = get_my_table(node);
-	let send_vector = bellman_ford_equation(my_table, node);
-	
+	let my_routing_table = routing_tables.find((routing_table) => routing_table.table_node === node).routing_table;
+	let send_vector = bellman_ford_equation(my_table, node, my_routing_table);
+
 	setTimeout(() => {
 		if(send_vector) {
 			visual_interface.update_vector(node, node, my_table[node]);
+			visual_interface.update_routing_table(node, my_routing_table);
 			// Broadcast vector to neighbors
 			setTimeout(() => {
 				broadcast_vector(get_my_table(node)[node], node);
