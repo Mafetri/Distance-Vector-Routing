@@ -99,6 +99,8 @@ function deep_copy(object) {
 	return copy;
 }
 
+visual_interface.edges_forms(edges, nodes);
+
 // ======================== Interfaces Provided to Nodes ========================
 // Sends the vector to the neighbors of the node
 function broadcast_vector (vector, node) {
@@ -161,14 +163,14 @@ function get_my_routing_table (node) {
 
 // Updates the node vector applying the Bellman-Ford equation (returns True when the vector has changed)
 function bellman_ford_equation(vectors_table, node, routing_table) {
-	const targets_nodes = Object.keys(vectors_table[node]);
+	const targets_nodes = Object.keys(vectors_table[node]).filter(targetNode => targetNode !== node);
 	const before_vector = deep_copy(vectors_table[node]);
 
 	targets_nodes.forEach((target_node) => {
 		if (target_node !== node) {
 			// Find the intermediate node that results in the minimum distance
 			let minIntermediateNode = routing_table[target_node];
-			let minDistance = vectors_table[node][target_node];
+			let minDistance = Number.POSITIVE_INFINITY;
 
 			targets_nodes.forEach((intermediate_node) => {
 				const distance = vectors_table[node][intermediate_node] + vectors_table[intermediate_node][target_node];
@@ -231,4 +233,16 @@ document.getElementById("run_next_node").addEventListener("click", () => {
 
 	actual_node = (actual_node + 1) % nodes.length;
 	document.getElementById("run_next_node").innerHTML = "Run node: " + nodes[actual_node];
+});
+
+// ======================== Extra ========================
+let modify_edges_form = false;
+document.getElementById("modify_edges_forms").addEventListener("click", () => {
+	if(modify_edges_form) {
+		document.getElementById("full_screen").style.display = "none";
+		modify_edges_form = false;
+	} else {
+		document.getElementById("full_screen").style.display = "block";
+		modify_edges_form = true;
+	}
 });

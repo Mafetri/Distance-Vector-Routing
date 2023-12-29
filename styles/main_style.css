@@ -4,6 +4,8 @@
 	--white: #F0ECE5;
 	--dark_color: #161A30;
 	--gray: #b6bbc4;
+	--dark_red: #d11a2a ;
+	--modify_color: #ffcf41;
 }
 
 body {
@@ -104,6 +106,7 @@ td:first-child, .routing_table th:first-child {
 	box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.7);
 	display: flex;
 	justify-content: space-evenly;
+	z-index: 10000;
 }
 
 button {
@@ -138,4 +141,79 @@ button {
 	font-weight: bold;
 	color : var(--dark_color);
 	margin: 0;
+}
+
+.full_screen {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 60%;
+	height: 100%;
+	background-color: rgba(182, 187, 196, 0.7);
+	z-index: 100;
+	display: flex;
+}
+
+#change_edge_forms {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background-color: var(--white);
+	padding: 0;
+	border-radius: 5px;
+	box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.7);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: fit-content;
+}
+
+#change_edge_forms_div {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 0px 20px 0px 20px;
+	border-radius: 0 0 10px 10px;
+	background-color: white;
+}
+
+#change_edge_forms h2 {
+	margin: 10px;
+	color: var(--dark_color);
+}
+
+.change_edge_form {
+	display: flex;
+	flex-direction: row;
+	gap: 0.5em;
+	background-color: white;
+	padding: 10px;
+	justify-content: space-evenly;
+	width: 100%;
+}
+
+#change_edge_forms form:last-child {
+	border-radius: 0 0 10px 10px;
+}
+
+.change_edge_form input {
+	padding: 0.5em;
+	border-radius: 5px;
+	border: 1px solid var(--dark_color);
+}
+
+.change_edge_form p {
+	padding: 5px;
+	margin: 3px;
+}
+
+.edge_form_delete {
+	background-color: var(--dark_red);
+	color: var(--white);
+}
+
+.edge_form_modify {
+	background-color: var(--modify_color);
+	color: black;
 }
