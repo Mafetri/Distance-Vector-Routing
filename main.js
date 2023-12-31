@@ -1,45 +1,10 @@
 import visual_interface from "./lib/visual_interface.js";
+import topologies from "./topologies/dv_algorithm.json" assert { type: "json" };
 
 // Network
-let nodes = ["A", "B", "C", "D", "E", "F", "G"];
-let edges = [
-	{
-		nodes: ["A", "B"],
-		cost: 3,
-	},
-	{
-		nodes: ["A", "C"],
-		cost: 1,
-	},
-	{
-		nodes: ["A", "D"],
-		cost: 2,
-	},
-	{
-		nodes: ["B", "E"],
-		cost: 3,
-	},
-	{
-		nodes: ["B", "F"],
-		cost: 1,
-	},
-	{
-		nodes: ["C", "G"],
-		cost: 2,
-	},
-	{
-		nodes: ["D", "G"],
-		cost: 3,
-	},
-	{
-		nodes: ["E", "G"],
-		cost: 1,
-	},
-	{
-		nodes: ["F", "G"],
-		cost: 2,
-	},
-];
+let topology = topologies.test_1;
+let nodes = topology.nodes;
+let edges = topology.edges;
 let tables = [];
 let vector_passes = [];
 
@@ -69,11 +34,11 @@ nodes.forEach((node) => {
 			vectors_table[target][source] = edge.cost; // Include this line for bidirectional edges
 		}
 	});
-	
+
 	// Fills the routing table
 	let routing_table = {};
 	nodes.forEach((innerNode) => {
-		routing_table[innerNode] = vectors_table[node][innerNode] === Number.POSITIVE_INFINITY ? '-' : innerNode;
+		routing_table[innerNode] = vectors_table[node][innerNode] === Number.POSITIVE_INFINITY ? "-" : innerNode;
 	});
 
 	tables.push({ table_node: node, vectors_table, routing_table });
@@ -103,7 +68,7 @@ visual_interface.edges_forms(edges, nodes);
 
 // ======================== Interfaces Provided to Nodes ========================
 // Sends the vector to the neighbors of the node
-function broadcast_vector (vector, node) {
+function broadcast_vector(vector, node) {
 	let neighbors = edges.filter((edge) => edge.nodes.includes(node));
 	neighbors.forEach((neighbor) => {
 		let neighbor_node = neighbor.nodes.find((neighbor_node) => neighbor_node !== node);
@@ -112,21 +77,21 @@ function broadcast_vector (vector, node) {
 			to: neighbor_node,
 			date: Date.now(),
 			vector: deep_copy(vector),
-		}
+		};
 		vector_passes.push(packaged_vector);
 		visual_interface.edge_send(node, neighbor_node);
 	});
 }
 
 // Receives the vectors sent to the node
-function recv_vector (node) {
-	let recv_vectors = vector_passes.filter(packaged_vector => packaged_vector.to === node);
-	vector_passes = vector_passes.filter(packaged_vector => packaged_vector.to !== node);
+function recv_vector(node) {
+	let recv_vectors = vector_passes.filter((packaged_vector) => packaged_vector.to === node);
+	vector_passes = vector_passes.filter((packaged_vector) => packaged_vector.to !== node);
 	return recv_vectors;
 }
 
 // Updates the vectors of the node table
-function update_vectors (vectors_table, vectors, node) {
+function update_vectors(vectors_table, vectors, node) {
 	vectors.forEach((packaged_vector) => {
 		let neighbor_node = packaged_vector.from;
 		let neighbor_vector = packaged_vector.vector;
@@ -135,56 +100,72 @@ function update_vectors (vectors_table, vectors, node) {
 	});
 }
 
+// Discards the repeated vectors (keeps the newest)
 function discard_repeated_old_vectors(vectors) {
-    const uniqueVectors = {};
+	const uniqueVectors = {};
 
-    vectors.forEach((vector) => {
-        const existingVector = uniqueVectors[vector.from];
+	vectors.forEach((vector) => {
+		const existingVector = uniqueVectors[vector.from];
 
-        if (!existingVector || existingVector.date < vector.date) {
-            uniqueVectors[vector.from] = vector;
-        }
-    });
+		if (!existingVector || existingVector.date < vector.date) {
+			uniqueVectors[vector.from] = vector;
+		}
+	});
 
-    // Convert the object back to an array
-    const filteredVectors = Object.values(uniqueVectors);
+	// Convert the object back to an array
+	const filteredVectors = Object.values(uniqueVectors);
 
-    return filteredVectors;
+	return filteredVectors;
 }
 
 // Gives the table of the node
-function get_my_vectors_table (node) {
+function get_my_vectors_table(node) {
 	return tables.find((vectors_table) => vectors_table.table_node === node).vectors_table;
 }
 
-function get_my_routing_table (node) {
+// Return the routing table of the node
+function get_my_routing_table(node) {
 	return tables.find((routing_table) => routing_table.table_node === node).routing_table;
+}
+
+// Returns the cost of the edge between the node and the target_node, if there is no edge, returns Infinity
+function get_direct_cost(node, target_node) {
+	const edge = edges.find((edge) => edge.nodes.includes(node) && edge.nodes.includes(target_node));
+	return edge === undefined ? Number.POSITIVE_INFINITY : edge.cost;
+}
+
+// Returns the neighbors of the node
+function get_neighbors(node) {
+	const node_edges = edges.filter((edge) => edge.nodes.includes(node));
+	return node_edges.map((edge) => edge.nodes.find((neighbor) => neighbor !== node));
 }
 
 // Updates the node vector applying the Bellman-Ford equation (returns True when the vector has changed)
 function bellman_ford_equation(vectors_table, node, routing_table) {
-	const targets_nodes = Object.keys(vectors_table[node]).filter(targetNode => targetNode !== node);
+	const targets_nodes = Object.keys(vectors_table[node]).filter((targetNode) => targetNode !== node);
 	const before_vector = deep_copy(vectors_table[node]);
+	const neighbors = get_neighbors(node);
 
 	targets_nodes.forEach((target_node) => {
 		if (target_node !== node) {
 			// Find the intermediate node that results in the minimum distance
-			let minIntermediateNode = routing_table[target_node];
-			let minDistance = Number.POSITIVE_INFINITY;
+			let min_intermediate_node = "";
+			let min_distance = Number.POSITIVE_INFINITY;
 
-			targets_nodes.forEach((intermediate_node) => {
-				const distance = vectors_table[node][intermediate_node] + vectors_table[intermediate_node][target_node];
-				if (distance < minDistance) {
-					minDistance = distance;
-					minIntermediateNode = intermediate_node;
+			// For each neighbor, calculate the distance to the target node (D_neighbor(target) + c(node, neighbor)) and find the minimum
+			neighbors.forEach((neighbor) => {
+				const distance = get_direct_cost(node, neighbor) + vectors_table[neighbor][target_node];
+				if (distance < min_distance) {
+					min_distance = distance;
+					min_intermediate_node = neighbor;
 				}
 			});
 
 			// Update the table with the minimum distance
-			vectors_table[node][target_node] = Math.min(vectors_table[node][target_node], minDistance);
-			
+			vectors_table[node][target_node] = min_distance;
+
 			// Update the intermediate nodes object
-			routing_table[target_node] = minIntermediateNode;
+			routing_table[target_node] = min_intermediate_node;
 		}
 	});
 
@@ -193,11 +174,11 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 
 // ======================== DV Algorithm ========================
 document.getElementById("start_dv_algorithm").addEventListener("click", () => {
-    nodes.forEach((node, index) => {
-        setTimeout(() => {
-            broadcast_vector(get_my_vectors_table(node)[node], node);
-        }, 1000 * index); // Use index to stagger the timeouts
-    });
+	nodes.forEach((node, index) => {
+		setTimeout(() => {
+			broadcast_vector(get_my_vectors_table(node)[node], node);
+		}, 1000 * index); // Use index to stagger the timeouts
+	});
 	document.getElementById("start_dv_algorithm").style.display = "none";
 	document.getElementById("reset_button").style.display = "block";
 	document.getElementById("run_next_node").style.display = "block";
@@ -221,7 +202,7 @@ document.getElementById("run_next_node").addEventListener("click", () => {
 	let send_vector = bellman_ford_equation(vectors_table, node, routing_table);
 
 	setTimeout(() => {
-		if(send_vector) {
+		if (send_vector) {
 			visual_interface.update_vector(node, node, vectors_table[node]);
 			visual_interface.update_routing_table(node, routing_table);
 			// Broadcast vector to neighbors
@@ -235,10 +216,44 @@ document.getElementById("run_next_node").addEventListener("click", () => {
 	document.getElementById("run_next_node").innerHTML = "Run node: " + nodes[actual_node];
 });
 
+// ======================== Modify Edges ========================
+document.querySelectorAll(".change_edge_form").forEach((form) => {
+	form.addEventListener("submit", (event) => {
+		event.preventDefault(); // Prevent default form submission
+		const action = event.submitter.value; // Get the action (modify or delete)
+
+		if (action === "modify") {
+			const new_cost = parseInt(form.querySelector("input[name='cost']").value);
+
+			// Find the corresponding edge in the edges array and update its cost
+			const form_nodes = form.querySelectorAll("p");
+			const edge_index = edges.findIndex((edge) => 
+				(edge.nodes[0] === form_nodes[0].textContent && edge.nodes[1] === form_nodes[1].textContent) ||
+					(edge.nodes[0] === form_nodes[1].textContent && edge.nodes[1] === form_nodes[0].textContent)
+			);
+
+			if (edge_index !== -1) {
+				edges[edge_index].cost = new_cost;
+				visual_interface.update_edge(edges[edge_index]);
+			}
+		} else if (action === "delete") {
+			// Find the corresponding edge in the edges array and remove it
+			const form_nodes = form.querySelectorAll("p");
+			const edge_index = edges.findIndex((edge) => 
+				(edge.nodes[0] === form_nodes[0].textContent && edge.nodes[1] === form_nodes[1].textContent) ||
+					(edge.nodes[0] === form_nodes[1].textContent && edge.nodes[1] === form_nodes[0].textContent)
+			);
+			if (edge_index !== -1) {
+				// edges.splice(edge_index, 1);
+			}
+		}
+	});
+});
+
 // ======================== Extra ========================
 let modify_edges_form = false;
 document.getElementById("modify_edges_forms").addEventListener("click", () => {
-	if(modify_edges_form) {
+	if (modify_edges_form) {
 		document.getElementById("full_screen").style.display = "none";
 		modify_edges_form = false;
 	} else {

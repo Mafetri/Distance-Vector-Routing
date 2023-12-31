@@ -1,0 +1,24 @@
+{
+	"test_1": {
+		"nodes": ["A", "B", "C", "D", "E", "F", "G"],
+		"edges": [
+			{ "nodes": ["A", "B"], "cost": 3 },
+			{ "nodes": ["A", "C"], "cost": 1 },
+			{ "nodes": ["A", "D"], "cost": 2 },
+			{ "nodes": ["B", "E"], "cost": 3 },
+			{ "nodes": ["B", "F"], "cost": 1 },
+			{ "nodes": ["C", "G"], "cost": 2 },
+			{ "nodes": ["D", "G"], "cost": 3 },
+			{ "nodes": ["E", "G"], "cost": 1 },
+			{ "nodes": ["F", "G"], "cost": 2 }
+		]
+	},
+	"poisoned_reverse": {
+		"nodes": ["A", "B", "C"],
+		"edges": [
+			{ "nodes": ["A", "B"], "cost": 1 },
+			{ "nodes": ["A", "C"], "cost": 1 },
+			{ "nodes": ["B", "C"], "cost": 50 }
+		]
+	}
+}
