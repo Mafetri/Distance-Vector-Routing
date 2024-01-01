@@ -1,5 +1,8 @@
 {
-	"test_1": {
+	"the_big_one": {
+		"title": "The Big One",
+		"description": "A big topology with 7 nodes and 9 edges.",
+		"img": "/topologies/img/the_big_one.png",
 		"nodes": ["A", "B", "C", "D", "E", "F", "G"],
 		"edges": [
 			{ "nodes": ["A", "B"], "cost": 3 },
@@ -13,7 +16,10 @@
 			{ "nodes": ["F", "G"], "cost": 2 }
 		]
 	},
-	"poisoned_reverse": {
+	"count_infinity": {
+		"title": "The Count Infinity",
+		"description": "A small topology of 3 nodes where the count to infinity problem occurs when an edge changes.",
+		"img": "/topologies/img/count_infinity.png",
 		"nodes": ["A", "B", "C"],
 		"edges": [
 			{ "nodes": ["A", "B"], "cost": 1 },

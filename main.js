@@ -2,50 +2,74 @@ import visual_interface from "./lib/visual_interface.js";
 import topologies from "./topologies/dv_algorithm.json" assert { type: "json" };
 
 // Network
-let topology = topologies.test_1;
-let nodes = topology.nodes;
-let edges = topology.edges;
+let topology;
+let nodes = [];
+let edges = [];
 let tables = [];
 let vector_passes = [];
 
 // ======================== Initialization ========================
-// Graphs the network
-visual_interface.graph_network(nodes, edges);
+// Selects the topology
+visual_interface.topology_selection(topologies);
+document.querySelectorAll('.topology_button').forEach(button => {
+	button.addEventListener('click', (event) => {
+		const clicked_button_id = event.target.id;
+		topology = topologies[clicked_button_id];
+		nodes = topology.nodes;
+		edges = topology.edges;
 
-// Fills each node tables (routing and vectors) with the nodes and edges
-nodes.forEach((node) => {
-	let vectors_table = [];
+		// Graphs the network
+		visual_interface.graph_network(nodes, edges);
 
-	// Initialize the table
-	nodes.forEach((innerNode) => {
-		vectors_table[innerNode] = {};
-		nodes.forEach((columnNode) => {
-			vectors_table[innerNode][columnNode] = innerNode === node && columnNode === node ? 0 : Number.POSITIVE_INFINITY;
-		});
+		// Fills the tables
+		fill_tables();
+		
+		// Graphs each node table
+		visual_interface.graph_tables(tables, nodes);
+
+		// Graphs the edges forms
+		visual_interface.edges_forms(edges, nodes);
+
+		modify_edges_forms();
+
+		// Hide the topology selection
+		document.getElementById("topologies_full_screen").style.display = "none";
 	});
-
-	// Fills the cost to neighbors
-	let filteredEdges = edges.filter((edge) => edge.nodes.includes(node));
-	filteredEdges.forEach((edge) => {
-		const [source, target] = edge.nodes;
-		if (source == node) {
-			vectors_table[source][target] = edge.cost;
-		} else {
-			vectors_table[target][source] = edge.cost; // Include this line for bidirectional edges
-		}
-	});
-
-	// Fills the routing table
-	let routing_table = {};
-	nodes.forEach((innerNode) => {
-		routing_table[innerNode] = vectors_table[node][innerNode] === Number.POSITIVE_INFINITY ? "-" : innerNode;
-	});
-
-	tables.push({ table_node: node, vectors_table, routing_table });
 });
 
-// Graphs each node table
-visual_interface.graph_tables(tables, nodes);
+// Fills each node tables (routing and vectors) with the nodes and edges
+function fill_tables() {
+	nodes.forEach((node) => {
+		let vectors_table = [];
+
+		// Initialize the table
+		nodes.forEach((innerNode) => {
+			vectors_table[innerNode] = {};
+			nodes.forEach((columnNode) => {
+				vectors_table[innerNode][columnNode] = innerNode === node && columnNode === node ? 0 : Number.POSITIVE_INFINITY;
+			});
+		});
+
+		// Fills the cost to neighbors
+		let filteredEdges = edges.filter((edge) => edge.nodes.includes(node));
+		filteredEdges.forEach((edge) => {
+			const [source, target] = edge.nodes;
+			if (source == node) {
+				vectors_table[source][target] = edge.cost;
+			} else {
+				vectors_table[target][source] = edge.cost; // Include this line for bidirectional edges
+			}
+		});
+
+		// Fills the routing table
+		let routing_table = {};
+		nodes.forEach((innerNode) => {
+			routing_table[innerNode] = vectors_table[node][innerNode] === Number.POSITIVE_INFINITY ? "-" : innerNode;
+		});
+
+		tables.push({ table_node: node, vectors_table, routing_table });
+	});
+}
 
 function deep_copy(object) {
 	let copy = Array.isArray(object) ? [] : {};
@@ -63,8 +87,6 @@ function deep_copy(object) {
 	}
 	return copy;
 }
-
-visual_interface.edges_forms(edges, nodes);
 
 // ======================== Interfaces Provided to Nodes ========================
 // Sends the vector to the neighbors of the node
@@ -217,6 +239,7 @@ document.getElementById("run_next_node").addEventListener("click", () => {
 });
 
 // ======================== Modify Edges ========================
+function modify_edges_forms() {
 document.querySelectorAll(".change_edge_form").forEach((form) => {
 	form.addEventListener("submit", (event) => {
 		event.preventDefault(); // Prevent default form submission
@@ -249,7 +272,7 @@ document.querySelectorAll(".change_edge_form").forEach((form) => {
 		}
 	});
 });
-
+};
 // ======================== Extra ========================
 let modify_edges_form = false;
 document.getElementById("modify_edges_forms").addEventListener("click", () => {
