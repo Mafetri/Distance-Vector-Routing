@@ -7,6 +7,8 @@ let nodes = [];
 let edges = [];
 let tables = [];
 let vector_passes = [];
+let link_cost_update = [];
+let poisoned_vectors = [];
 
 // ======================== Initialization ========================
 // Selects the topology
@@ -89,20 +91,40 @@ function deep_copy(object) {
 }
 
 // ======================== Interfaces Provided to Nodes ========================
-// Sends the vector to the neighbors of the node
+
+// Sends the same vector to all the neighbors of the node
 function broadcast_vector(vector, node) {
 	let neighbors = edges.filter((edge) => edge.nodes.includes(node));
 	neighbors.forEach((neighbor) => {
 		let neighbor_node = neighbor.nodes.find((neighbor_node) => neighbor_node !== node);
-		let packaged_vector = {
-			from: node,
-			to: neighbor_node,
-			date: Date.now(),
-			vector: deep_copy(vector),
-		};
-		vector_passes.push(packaged_vector);
-		visual_interface.edge_send(node, neighbor_node);
+		send_vector(vector, node, neighbor_node);
 	});
+}
+
+// Sends the vector to the destination_node
+function send_vector(vector, node, destination_node) {
+	let packaged_vector = {
+		from: node,
+		to: destination_node,
+		date: Date.now(),
+		vector: deep_copy(vector),
+	};
+	vector_passes.push(packaged_vector);
+	visual_interface.edge_send(node, destination_node);
+}
+
+// Sends the vectors (poisoned or not) to the neighbors of the node
+function send_vectors(node, vector, poisoned_vector_passes) {
+	let neighbors = edges.filter((edge) => edge.nodes.includes(node));
+	neighbors = neighbors.filter((neighbor) => poisoned_vector_passes.find((packaged_vector) => packaged_vector.to === neighbor.nodes.find((neighbor_node) => neighbor_node !== node)) === undefined);
+	neighbors.forEach((neighbor) => {
+		let neighbor_node = neighbor.nodes.find((neighbor_node) => neighbor_node !== node);
+		send_vector(vector, node, neighbor_node);
+	});
+
+	poisoned_vector_passes.forEach((packaged_vector) => {
+		send_vector(packaged_vector.vector, node, packaged_vector.to);
+	})
 }
 
 // Receives the vectors sent to the node
@@ -110,34 +132,6 @@ function recv_vector(node) {
 	let recv_vectors = vector_passes.filter((packaged_vector) => packaged_vector.to === node);
 	vector_passes = vector_passes.filter((packaged_vector) => packaged_vector.to !== node);
 	return recv_vectors;
-}
-
-// Updates the vectors of the node table
-function update_vectors(vectors_table, vectors, node) {
-	vectors.forEach((packaged_vector) => {
-		let neighbor_node = packaged_vector.from;
-		let neighbor_vector = packaged_vector.vector;
-		vectors_table[neighbor_node] = neighbor_vector;
-		visual_interface.update_vector(node, neighbor_node, neighbor_vector);
-	});
-}
-
-// Discards the repeated vectors (keeps the newest)
-function discard_repeated_old_vectors(vectors) {
-	const uniqueVectors = {};
-
-	vectors.forEach((vector) => {
-		const existingVector = uniqueVectors[vector.from];
-
-		if (!existingVector || existingVector.date < vector.date) {
-			uniqueVectors[vector.from] = vector;
-		}
-	});
-
-	// Convert the object back to an array
-	const filteredVectors = Object.values(uniqueVectors);
-
-	return filteredVectors;
 }
 
 // Gives the table of the node
@@ -162,36 +156,18 @@ function get_neighbors(node) {
 	return node_edges.map((edge) => edge.nodes.find((neighbor) => neighbor !== node));
 }
 
-// Updates the node vector applying the Bellman-Ford equation (returns True when the vector has changed)
-function bellman_ford_equation(vectors_table, node, routing_table) {
-	const targets_nodes = Object.keys(vectors_table[node]).filter((targetNode) => targetNode !== node);
-	const before_vector = deep_copy(vectors_table[node]);
-	const neighbors = get_neighbors(node);
+// Returns the poisoned vectors of the node to be send
+function get_nodes_poisoned(node) {
+	let poisoned_vectors_node = poisoned_vectors.filter((packaged_vector) => packaged_vector.from === node);
+	poisoned_vectors = poisoned_vectors.filter((packaged_vector) => packaged_vector.from !== node);
+	return poisoned_vectors_node;
+}
 
-	targets_nodes.forEach((target_node) => {
-		if (target_node !== node) {
-			// Find the intermediate node that results in the minimum distance
-			let min_intermediate_node = "";
-			let min_distance = Number.POSITIVE_INFINITY;
-
-			// For each neighbor, calculate the distance to the target node (D_neighbor(target) + c(node, neighbor)) and find the minimum
-			neighbors.forEach((neighbor) => {
-				const distance = get_direct_cost(node, neighbor) + vectors_table[neighbor][target_node];
-				if (distance < min_distance) {
-					min_distance = distance;
-					min_intermediate_node = neighbor;
-				}
-			});
-
-			// Update the table with the minimum distance
-			vectors_table[node][target_node] = min_distance;
-
-			// Update the intermediate nodes object
-			routing_table[target_node] = min_intermediate_node;
-		}
-	});
-
-	return JSON.stringify(before_vector) !== JSON.stringify(vectors_table[node]);
+// Returns true if the link has changed
+function link_has_changed(from, to) {
+	let link_updates = link_cost_update.length;
+	link_cost_update = link_cost_update.filter((link) => link.from !== from || link.to !== to);
+	return link_updates > link_cost_update.length;
 }
 
 // ======================== DV Algorithm ========================
@@ -229,7 +205,7 @@ document.getElementById("run_next_node").addEventListener("click", () => {
 			visual_interface.update_routing_table(node, routing_table);
 			// Broadcast vector to neighbors
 			setTimeout(() => {
-				broadcast_vector(vectors_table[node], node);
+				send_vectors(node, vectors_table[node], get_nodes_poisoned(node));
 			}, 800);
 		}
 	}, 1200);
@@ -237,6 +213,52 @@ document.getElementById("run_next_node").addEventListener("click", () => {
 	actual_node = (actual_node + 1) % nodes.length;
 	document.getElementById("run_next_node").innerHTML = "Run node: " + nodes[actual_node];
 });
+
+// Updates the node vector applying the Bellman-Ford equation (returns True when the vector has changed)
+function bellman_ford_equation(vectors_table, node, routing_table) {
+	const targets_nodes = Object.keys(vectors_table[node]).filter((targetNode) => targetNode !== node);
+	const before_vector = deep_copy(vectors_table[node]);
+	const neighbors = get_neighbors(node);
+
+	targets_nodes.forEach((target_node) => {
+		if (target_node !== node) {
+			// Find the intermediate node that results in the minimum distance
+			let min_intermediate_node = "";
+			let min_distance = Number.POSITIVE_INFINITY;
+
+			// For each neighbor, calculate the distance to the target node (D_neighbor(target) + c(node, neighbor)) and find the minimum
+			neighbors.forEach((neighbor) => {
+				const distance = get_direct_cost(node, neighbor) + vectors_table[neighbor][target_node];
+				if (distance < min_distance) {
+					min_distance = distance;
+					min_intermediate_node = neighbor;
+				}
+			});
+
+			// If the current total cost to the target is grater than the last time, then poison the link
+			let current_intermediate_node = routing_table[target_node];
+			// If there is a link change to the actual next hop and the node has chosen another next hop node, then poison the link
+			if(link_has_changed(node, current_intermediate_node) && current_intermediate_node !== min_intermediate_node) {
+				// So it poison the link lying to the intermediate node that the cost is infinity
+				let poisoned_vector = deep_copy(vectors_table[node]);
+				poisoned_vector[target_node] = Number.POSITIVE_INFINITY;
+				poisoned_vectors.push({
+					from: node,
+					to: min_intermediate_node,
+					vector: poisoned_vector,
+				});
+			}
+
+			// Update the table with the minimum distance
+			vectors_table[node][target_node] = min_distance;
+			
+			// Update the intermediate nodes object
+			routing_table[target_node] = min_intermediate_node;
+		}
+	});
+
+	return JSON.stringify(before_vector) !== JSON.stringify(vectors_table[node]);
+}
 
 // ======================== Modify Edges ========================
 function modify_edges_forms() {
@@ -256,6 +278,18 @@ document.querySelectorAll(".change_edge_form").forEach((form) => {
 			);
 
 			if (edge_index !== -1) {
+				link_cost_update.push({
+					from: form_nodes[0].textContent,
+					to: form_nodes[1].textContent,
+					old_cost: edges[edge_index].cost,
+					new_cost: new_cost,
+				});
+				link_cost_update.push({
+					from: form_nodes[1].textContent,
+					to: form_nodes[0].textContent,
+					old_cost: edges[edge_index].cost,
+					new_cost: new_cost,
+				});
 				edges[edge_index].cost = new_cost;
 				visual_interface.update_edge(edges[edge_index]);
 			}
@@ -273,7 +307,37 @@ document.querySelectorAll(".change_edge_form").forEach((form) => {
 	});
 });
 };
+
 // ======================== Extra ========================
+// Discards the repeated vectors (keeps the newest)
+function discard_repeated_old_vectors(vectors) {
+	const uniqueVectors = {};
+
+	vectors.forEach((vector) => {
+		const existingVector = uniqueVectors[vector.from];
+
+		if (!existingVector || existingVector.date < vector.date) {
+			uniqueVectors[vector.from] = vector;
+		}
+	});
+
+	// Convert the object back to an array
+	const filteredVectors = Object.values(uniqueVectors);
+
+	return filteredVectors;
+}
+
+// Updates the vectors of the node table
+function update_vectors(vectors_table, vectors, node) {
+	vectors.forEach((packaged_vector) => {
+		let neighbor_node = packaged_vector.from;
+		let neighbor_vector = packaged_vector.vector;
+		vectors_table[neighbor_node] = neighbor_vector;
+		visual_interface.update_vector(node, neighbor_node, neighbor_vector);
+	});
+}
+
+// Modify edges form button
 let modify_edges_form = false;
 document.getElementById("modify_edges_forms").addEventListener("click", () => {
 	if (modify_edges_form) {
