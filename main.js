@@ -9,6 +9,7 @@ let tables = [];
 let vector_passes = [];
 let link_cost_update = [];
 let poisoned_vectors = [];
+let poison_reverse = false;
 
 // ======================== Initialization ========================
 // Selects the topology
@@ -219,6 +220,7 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 	const targets_nodes = Object.keys(vectors_table[node]).filter((targetNode) => targetNode !== node);
 	const before_vector = deep_copy(vectors_table[node]);
 	const neighbors = get_neighbors(node);
+	let nodes_to_lie = [];
 
 	targets_nodes.forEach((target_node) => {
 		if (target_node !== node) {
@@ -235,26 +237,38 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 				}
 			});
 
-			// If the current total cost to the target is grater than the last time, then poison the link
-			let current_intermediate_node = routing_table[target_node];
-			// If there is a link change to the actual next hop and the node has chosen another next hop node, then poison the link
-			if(link_has_changed(node, current_intermediate_node) && current_intermediate_node !== min_intermediate_node) {
-				// So it poison the link lying to the intermediate node that the cost is infinity
-				let poisoned_vector = deep_copy(vectors_table[node]);
-				poisoned_vector[target_node] = Number.POSITIVE_INFINITY;
-				poisoned_vectors.push({
-					from: node,
-					to: min_intermediate_node,
-					vector: poisoned_vector,
-				});
-			}
-
 			// Update the table with the minimum distance
 			vectors_table[node][target_node] = min_distance;
+
+			// Poison reverse
+			if(poison_reverse) {
+				// If the current total cost to the target is grater than the last time, then poison the link
+				let current_intermediate_node = routing_table[target_node];
+				// If there is a link change to the actual next hop and the node has chosen another next hop node, then poison the link
+				if(link_has_changed(node, current_intermediate_node) && current_intermediate_node !== min_intermediate_node) {
+					// Saves the node to lie
+					nodes_to_lie.push({
+						to: min_intermediate_node,
+						target: target_node,
+					});
+				}
+			}
 			
 			// Update the intermediate nodes object
 			routing_table[target_node] = min_intermediate_node;
 		}
+	});
+
+	// Now that the vector is completely updated, poison the vector send to the nodes_to_lie nodes
+	nodes_to_lie.forEach((node_to_lie) => {
+		let poisoned_vector = deep_copy(vectors_table[node]);
+		poisoned_vector[node_to_lie.target] = Number.POSITIVE_INFINITY;
+
+		poisoned_vectors.push({
+			from: node,
+			to: node_to_lie.to,
+			vector: poisoned_vector,
+		});
 	});
 
 	return JSON.stringify(before_vector) !== JSON.stringify(vectors_table[node]);
@@ -294,6 +308,7 @@ document.querySelectorAll(".change_edge_form").forEach((form) => {
 				visual_interface.update_edge(edges[edge_index]);
 			}
 		} else if (action === "delete") {
+			const new_cost = Number.POSITIVE_INFINITY;
 			// Find the corresponding edge in the edges array and remove it
 			const form_nodes = form.querySelectorAll("p");
 			const edge_index = edges.findIndex((edge) => 
@@ -301,12 +316,31 @@ document.querySelectorAll(".change_edge_form").forEach((form) => {
 					(edge.nodes[0] === form_nodes[1].textContent && edge.nodes[1] === form_nodes[0].textContent)
 			);
 			if (edge_index !== -1) {
-				// edges.splice(edge_index, 1);
+				link_cost_update.push({
+					from: form_nodes[0].textContent,
+					to: form_nodes[1].textContent,
+					old_cost: edges[edge_index].cost,
+					new_cost: new_cost,
+				});
+				link_cost_update.push({
+					from: form_nodes[1].textContent,
+					to: form_nodes[0].textContent,
+					old_cost: edges[edge_index].cost,
+					new_cost: new_cost,
+				});
+				edges[edge_index].cost = new_cost;
+				form.remove();
+				visual_interface.update_edge(edges[edge_index]);
 			}
 		}
 	});
 });
 };
+
+const poison_reverse_selector = document.getElementById('poison_reverse');
+poison_reverse_selector.addEventListener('change', () => {
+	poison_reverse = poison_reverse_selector.value;
+});
 
 // ======================== Extra ========================
 // Discards the repeated vectors (keeps the newest)

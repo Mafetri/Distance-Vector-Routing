@@ -18,13 +18,25 @@
 	},
 	"count_infinity": {
 		"title": "The Count Infinity",
-		"description": "A small topology of 3 nodes where the count to infinity problem occurs when an edge changes.",
+		"description": "A small topology of 3 nodes where the count to infinity problem occurs when an edge changes where the poison reverse can solve it.",
 		"img": "/topologies/img/count_infinity.png",
 		"nodes": ["A", "B", "C"],
 		"edges": [
 			{ "nodes": ["A", "B"], "cost": 1 },
 			{ "nodes": ["A", "C"], "cost": 1 },
 			{ "nodes": ["B", "C"], "cost": 50 }
+		]
+	},
+	"poison_reverse_fault": {
+		"title": "Poison Reverse Fault",
+		"description": "A small topology of 4 nodes where the count to infinity problem occurs when an edge is deleted but the poison reverse can't solve it.",
+		"img": "/topologies/img/poison_reverse_fault.png",
+		"nodes": ["A", "B", "C", "D"],
+		"edges": [
+			{ "nodes": ["A", "C"], "cost": 1 },
+			{ "nodes": ["A", "B"], "cost": 1 },
+			{ "nodes": ["B", "C"], "cost": 3 },
+			{ "nodes": ["C", "D"], "cost": 1 }
 		]
 	}
 }
