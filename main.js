@@ -25,7 +25,7 @@ document.querySelectorAll('.topology_button').forEach(button => {
 		visual_interface.graph_network(nodes, edges);
 
 		// Fills the tables
-		fill_tables();
+		initialize_tables();
 		
 		// Graphs each node table
 		visual_interface.graph_tables(tables, nodes);
@@ -39,6 +39,27 @@ document.querySelectorAll('.topology_button').forEach(button => {
 		document.getElementById("topologies_full_screen").style.display = "none";
 	});
 });
+
+function initialize_tables() {
+	nodes.forEach((node) => {
+		let vectors_table = [];
+		let routing_table = {};
+
+		vectors_table[node] = {};
+
+		let neighbors = get_neighbors(node);
+		neighbors.forEach((neighbor) => {
+			const cost = get_direct_cost(node, neighbor);
+			vectors_table[node][neighbor] = cost;
+			routing_table[neighbor] = neighbor;
+		});
+
+		vectors_table[node][node] = 0;
+		routing_table[node] = node;
+
+		tables.push({ table_node: node, vectors_table, routing_table });
+	});
+}
 
 // Fills each node tables (routing and vectors) with the nodes and edges
 function fill_tables() {
@@ -361,14 +382,38 @@ function discard_repeated_old_vectors(vectors) {
 	return filteredVectors;
 }
 
+// From the table given, returns an array with all the nodes involved in the table
+function extract_nodes(table) {
+	const nodes = [];
+	for (const node in table) {
+		if (typeof table[node] === 'object') {
+			nodes.push(...extract_nodes(table[node])); // Recursively extract keys from nested objects
+		} else {
+			nodes.push(node);
+		}
+	}
+	return nodes;
+}
+
+// If the received vector has more nodes than the vector of the node, then add the missing nodes with Infinity cost
+function increase_vector(table_node, table) {
+	const nodes = [...new Set(extract_nodes(table))];
+	nodes.forEach(node => {
+		if (!table[table_node].hasOwnProperty(node)) {
+			table[table_node][node] = Number.POSITIVE_INFINITY; // Add missing keys with Infinity value
+		}
+	});
+}
+
 // Updates the vectors of the node table
 function update_vectors(vectors_table, vectors, node) {
 	vectors.forEach((packaged_vector) => {
 		let neighbor_node = packaged_vector.from;
 		let neighbor_vector = packaged_vector.vector;
 		vectors_table[neighbor_node] = neighbor_vector;
-		visual_interface.update_vector(node, neighbor_node, neighbor_vector);
+		increase_vector(node, vectors_table);
 	});
+	visual_interface.update_table(node, vectors_table, vectors);
 }
 
 // Modify edges form button

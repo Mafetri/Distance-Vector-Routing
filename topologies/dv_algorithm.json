@@ -38,5 +38,15 @@
 			{ "nodes": ["B", "C"], "cost": 3 },
 			{ "nodes": ["C", "D"], "cost": 1 }
 		]
+	},
+	"split_horizon": {
+		"title": "Split Horizon",
+		"description": "A small topology of 3 nodes where the count to infinity problem occurs when an edge is deleted and there are no more routes to the node. Poison Reverse solves it.",
+		"img": "/topologies/img/split_horizon.png",
+		"nodes": ["A", "B", "C"],
+		"edges": [
+			{ "nodes": ["A", "B"], "cost": 1 },
+			{ "nodes": ["B", "C"], "cost": 1 }
+		]
 	}
 }
