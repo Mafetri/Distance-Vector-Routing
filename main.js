@@ -38,6 +38,8 @@ document.querySelectorAll('.topology_button').forEach(button => {
 		visual_interface.node_form(nodes);
 		delete_node_form();
 
+		add_node_form();
+
 		// Hide the topology selection
 		document.getElementById("topologies_full_screen").style.display = "none";
 	});
@@ -45,23 +47,27 @@ document.querySelectorAll('.topology_button').forEach(button => {
 
 function initialize_tables() {
 	nodes.forEach((node) => {
-		let vectors_table = [];
-		let routing_table = {};
-
-		vectors_table[node] = {};
-
-		let neighbors = get_neighbors(node);
-		neighbors.forEach((neighbor) => {
-			const cost = get_direct_cost(node, neighbor);
-			vectors_table[node][neighbor] = cost;
-			routing_table[neighbor] = neighbor;
-		});
-
-		vectors_table[node][node] = 0;
-		routing_table[node] = node;
-
-		tables.push({ table_node: node, vectors_table, routing_table });
+		initialize_node(node);
 	});
+}
+
+function initialize_node (node) {
+	let vectors_table = [];
+	let routing_table = {};
+
+	vectors_table[node] = {};
+
+	let neighbors = get_neighbors(node);
+	neighbors.forEach((neighbor) => {
+		const cost = get_direct_cost(node, neighbor);
+		vectors_table[node][neighbor] = cost;
+		routing_table[neighbor] = neighbor;
+	});
+
+	vectors_table[node][node] = 0;
+	routing_table[node] = node;
+
+	tables.push({ table_node: node, vectors_table, routing_table });
 }
 
 // Fills each node tables (routing and vectors) with the nodes and edges
@@ -254,6 +260,7 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 
 			// For each neighbor, calculate the distance to the target node (D_neighbor(target) + c(node, neighbor)) and find the minimum
 			neighbors.forEach((neighbor) => {
+				if(!vectors_table[neighbor]) return;
 				const distance = get_direct_cost(node, neighbor) + vectors_table[neighbor][target_node];
 				if (distance < min_distance) {
 					min_distance = distance;
@@ -398,6 +405,37 @@ function delete_node_form () {
 	});
 }
 
+function add_node_form () {
+	document.getElementById("add_node_form").addEventListener("submit", (event) => {
+		event.preventDefault(); // Prevent default form submission
+		
+		// Gets the name of the new node
+		const node = event.target.querySelector("input[name='node_name']").value;
+		nodes.push(node);
+
+		// Gets the edges of the new node
+		let node_edges = event.target.querySelector("input[name='node_edges']").value;
+		node_edges = node_edges.split(",");
+
+		// Saves the new edges
+		node_edges.forEach((edge) => {
+			edges.push({
+				nodes: [node, edge.split(":")[0]],
+				cost: parseInt(edge.split(":")[1]),
+			});
+		});
+
+		// Initialize the node
+		initialize_node(node);
+
+		// Graph the new node
+		visual_interface.add_node(node, get_my_vectors_table(node), get_my_routing_table(node));
+		visual_interface.update_network(nodes, edges);
+
+		// Broadcast its vector as normal
+		broadcast_vector(get_my_vectors_table(node)[node], node);
+	});
+}
 // ======================== Extra ========================
 // Discards the repeated vectors (keeps the newest)
 function discard_repeated_old_vectors(vectors) {
