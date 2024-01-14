@@ -8,8 +8,8 @@
 		<link rel="stylesheet" href="styles/main_style.css" />
 	</head>
 	<body>
-		<div class="full_screen" style="display: none;" id="full_screen">
-			<div id="change_edge_forms">
+		<div class="half_screen" style="display: none;" id="full_screen">
+			<div id="change_edge_forms" class = "forms_section">
 				<h2>Edges</h2>
 				<form>
 					<label for="">Poison Reverse: </label>
@@ -18,12 +18,25 @@
 						<option selected value="false">No</option>
 					</select>
 				</form>
-				<div id = "change_edge_forms_div">
+				<div id = "change_edge_forms_div" class = "forms_div">
 					
 				</div>
 			</div>
 		</div>
-		<div id="topologies_full_screen">
+		<div class="full_screen" id = "nodes_forms_full_screen" style="display: none;">
+			<div id = "node_forms">
+				<h2>Nodes</h2>
+				<div id = "change_node_forms_div" class = "form_div"></div>
+				<form id = "add_node" class="form">
+					<label for="node_name">Name: </label>
+					<input class = "small_input" type="text" name="node_name" id="node_name" />
+					<label for="node_port">Edges: </label>
+					<input type="text" name="node_port" id="node_port" />
+					<button type="button" id="add_node_button">Add Node</button>
+				</form>
+			</div>
+		</div>
+		<div class="full_screen" id="topologies_full_screen">
 			<div id = "topology_selection">
 				<h2>Topologies</h2>
 				<div id = "topologies"></div>
@@ -36,6 +49,7 @@
 		<div id = "buttons-box">
 			<button id="reset_button" style="display: none;" onClick="window.location.reload();">Restart</button>
 			<button id="modify_edges_forms">Modify Edges</button>
+			<button id="modify_nodes_forms">Modify Nodes</button>
 			<button id="start_dv_algorithm" >Start</button>
 			<button id="run_next_node" style="display: none;">Run first node</button>
 		</div>

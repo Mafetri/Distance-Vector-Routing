@@ -32,8 +32,11 @@ document.querySelectorAll('.topology_button').forEach(button => {
 
 		// Graphs the edges forms
 		visual_interface.edges_forms(edges, nodes);
-
 		modify_edges_forms();
+
+		// Graphs the nodes forms
+		visual_interface.node_form(nodes);
+		delete_node_form();
 
 		// Hide the topology selection
 		document.getElementById("topologies_full_screen").style.display = "none";
@@ -363,6 +366,38 @@ poison_reverse_selector.addEventListener('change', () => {
 	poison_reverse = poison_reverse_selector.value;
 });
 
+// ======================== Add/Delete Nodes ========================
+function delete_node_form () {
+	document.getElementById("delete_node_form").addEventListener("submit", (event) => {
+		event.preventDefault(); // Prevent default form submission
+		const node = event.target.querySelector("select[name='node_name']").value;
+
+		// Finds all the edges and notifies all the nodes involved that the node is not reachable
+		let node_edges = edges.filter((edge) => edge.nodes.includes(node));
+		node_edges.forEach((edge) => {
+			link_cost_update.push({
+				from: edge.nodes[0],
+				to: edge.nodes[1],
+				old_cost: edge.cost,
+				new_cost: Number.POSITIVE_INFINITY,
+			});
+			link_cost_update.push({
+				from: edge.nodes[1],
+				to: edge.nodes[0],
+				old_cost: edge.cost,
+				new_cost: Number.POSITIVE_INFINITY,
+			});
+			edge.cost = Number.POSITIVE_INFINITY;
+			visual_interface.update_edge(edge);
+		});
+
+		// Removes the node
+		nodes = nodes.filter((node_name) => node_name !== node);
+		edges = edges.filter((edge) => !edge.nodes.includes(node));
+		tables = tables.filter((table) => table.table_node !== node);
+	});
+}
+
 // ======================== Extra ========================
 // Discards the repeated vectors (keeps the newest)
 function discard_repeated_old_vectors(vectors) {
@@ -425,5 +460,16 @@ document.getElementById("modify_edges_forms").addEventListener("click", () => {
 	} else {
 		document.getElementById("full_screen").style.display = "block";
 		modify_edges_form = true;
+	}
+});
+
+let modify_node_form = false;
+document.getElementById("modify_nodes_forms").addEventListener("click", () => {
+	if (modify_node_form) {
+		document.getElementById("nodes_forms_full_screen").style.display = "none";
+		modify_node_form = false;
+	} else {
+		document.getElementById("nodes_forms_full_screen").style.display = "block";
+		modify_node_form = true;
 	}
 });
