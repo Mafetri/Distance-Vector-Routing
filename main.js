@@ -1,7 +1,7 @@
 import visual_interface from "./lib/visual_interface.js";
 import topologies from "./topologies/dv_algorithm.json" assert { type: "json" };
 
-// Network
+// ======================== Global Variables ========================
 let topology;
 let nodes = [];
 let edges = [];
@@ -12,10 +12,11 @@ let poisoned_vectors = [];
 let poison_reverse = false;
 
 // ======================== Initialization ========================
+
 // Selects the topology
 visual_interface.topology_selection(topologies);
-document.querySelectorAll('.topology_button').forEach(button => {
-	button.addEventListener('click', (event) => {
+document.querySelectorAll(".topology_button").forEach((button) => {
+	button.addEventListener("click", (event) => {
 		const clicked_button_id = event.target.id;
 		topology = topologies[clicked_button_id];
 		nodes = topology.nodes;
@@ -26,7 +27,7 @@ document.querySelectorAll('.topology_button').forEach(button => {
 
 		// Fills the tables
 		initialize_tables();
-		
+
 		// Graphs each node table
 		visual_interface.graph_tables(tables, nodes);
 
@@ -45,13 +46,15 @@ document.querySelectorAll('.topology_button').forEach(button => {
 	});
 });
 
+// Initialize the tables of the nodes
 function initialize_tables() {
 	nodes.forEach((node) => {
 		initialize_node(node);
 	});
 }
 
-function initialize_node (node) {
+// Initialize the table of the node
+function initialize_node(node) {
 	let vectors_table = [];
 	let routing_table = {};
 
@@ -68,57 +71,6 @@ function initialize_node (node) {
 	routing_table[node] = node;
 
 	tables.push({ table_node: node, vectors_table, routing_table });
-}
-
-// Fills each node tables (routing and vectors) with the nodes and edges
-function fill_tables() {
-	nodes.forEach((node) => {
-		let vectors_table = [];
-
-		// Initialize the table
-		nodes.forEach((innerNode) => {
-			vectors_table[innerNode] = {};
-			nodes.forEach((columnNode) => {
-				vectors_table[innerNode][columnNode] = innerNode === node && columnNode === node ? 0 : Number.POSITIVE_INFINITY;
-			});
-		});
-
-		// Fills the cost to neighbors
-		let filteredEdges = edges.filter((edge) => edge.nodes.includes(node));
-		filteredEdges.forEach((edge) => {
-			const [source, target] = edge.nodes;
-			if (source == node) {
-				vectors_table[source][target] = edge.cost;
-			} else {
-				vectors_table[target][source] = edge.cost; // Include this line for bidirectional edges
-			}
-		});
-
-		// Fills the routing table
-		let routing_table = {};
-		nodes.forEach((innerNode) => {
-			routing_table[innerNode] = vectors_table[node][innerNode] === Number.POSITIVE_INFINITY ? "-" : innerNode;
-		});
-
-		tables.push({ table_node: node, vectors_table, routing_table });
-	});
-}
-
-function deep_copy(object) {
-	let copy = Array.isArray(object) ? [] : {};
-	for (let key in object) {
-		let v = object[key];
-		if (v) {
-			if (typeof v === "object") {
-				copy[key] = deep_copy(v);
-			} else {
-				copy[key] = v;
-			}
-		} else {
-			copy[key] = v;
-		}
-	}
-	return copy;
 }
 
 // ======================== Interfaces Provided to Nodes ========================
@@ -147,7 +99,12 @@ function send_vector(vector, node, destination_node) {
 // Sends the vectors (poisoned or not) to the neighbors of the node
 function send_vectors(node, vector, poisoned_vector_passes) {
 	let neighbors = edges.filter((edge) => edge.nodes.includes(node));
-	neighbors = neighbors.filter((neighbor) => poisoned_vector_passes.find((packaged_vector) => packaged_vector.to === neighbor.nodes.find((neighbor_node) => neighbor_node !== node)) === undefined);
+	neighbors = neighbors.filter(
+		(neighbor) =>
+			poisoned_vector_passes.find(
+				(packaged_vector) => packaged_vector.to === neighbor.nodes.find((neighbor_node) => neighbor_node !== node),
+			) === undefined,
+	);
 	neighbors.forEach((neighbor) => {
 		let neighbor_node = neighbor.nodes.find((neighbor_node) => neighbor_node !== node);
 		send_vector(vector, node, neighbor_node);
@@ -155,7 +112,7 @@ function send_vectors(node, vector, poisoned_vector_passes) {
 
 	poisoned_vector_passes.forEach((packaged_vector) => {
 		send_vector(packaged_vector.vector, node, packaged_vector.to);
-	})
+	});
 }
 
 // Receives the vectors sent to the node
@@ -202,6 +159,7 @@ function link_has_changed(from, to) {
 }
 
 // ======================== DV Algorithm ========================
+// Start the DV algorithm (initial broadcast)
 document.getElementById("start_dv_algorithm").addEventListener("click", () => {
 	nodes.forEach((node, index) => {
 		setTimeout(() => {
@@ -213,6 +171,7 @@ document.getElementById("start_dv_algorithm").addEventListener("click", () => {
 	document.getElementById("run_next_node").style.display = "block";
 });
 
+// Node execution after initialization broadcast
 let actual_node = 0;
 document.getElementById("run_next_node").addEventListener("click", () => {
 	let node = nodes[actual_node];
@@ -260,7 +219,7 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 
 			// For each neighbor, calculate the distance to the target node (D_neighbor(target) + c(node, neighbor)) and find the minimum
 			neighbors.forEach((neighbor) => {
-				if(!vectors_table[neighbor]) return;
+				if (!vectors_table[neighbor]) return;
 				const distance = get_direct_cost(node, neighbor) + vectors_table[neighbor][target_node];
 				if (distance < min_distance) {
 					min_distance = distance;
@@ -272,11 +231,11 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 			vectors_table[node][target_node] = min_distance;
 
 			// Poison reverse
-			if(poison_reverse) {
+			if (poison_reverse) {
 				// If the current total cost to the target is grater than the last time, then poison the link
 				let current_intermediate_node = routing_table[target_node];
 				// If there is a link change to the actual next hop and the node has chosen another next hop node, then poison the link
-				if(link_has_changed(node, current_intermediate_node) && current_intermediate_node !== min_intermediate_node) {
+				if (link_has_changed(node, current_intermediate_node) && current_intermediate_node !== min_intermediate_node) {
 					// Saves the node to lie
 					nodes_to_lie.push({
 						to: min_intermediate_node,
@@ -284,7 +243,7 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 					});
 				}
 			}
-			
+
 			// Update the intermediate nodes object
 			routing_table[target_node] = min_intermediate_node;
 		}
@@ -305,76 +264,177 @@ function bellman_ford_equation(vectors_table, node, routing_table) {
 	return JSON.stringify(before_vector) !== JSON.stringify(vectors_table[node]);
 }
 
-// ======================== Modify Edges ========================
-function modify_edges_forms() {
-document.querySelectorAll(".change_edge_form").forEach((form) => {
-	form.addEventListener("submit", (event) => {
-		event.preventDefault(); // Prevent default form submission
-		const action = event.submitter.value; // Get the action (modify or delete)
+// ======================== Extra ========================
+// Discards the repeated vectors (keeps the newest)
+function discard_repeated_old_vectors(vectors) {
+	const uniqueVectors = {};
 
-		if (action === "modify") {
-			const new_cost = parseInt(form.querySelector("input[name='cost']").value);
+	vectors.forEach((vector) => {
+		const existingVector = uniqueVectors[vector.from];
 
-			// Find the corresponding edge in the edges array and update its cost
-			const form_nodes = form.querySelectorAll("p");
-			const edge_index = edges.findIndex((edge) => 
-				(edge.nodes[0] === form_nodes[0].textContent && edge.nodes[1] === form_nodes[1].textContent) ||
-					(edge.nodes[0] === form_nodes[1].textContent && edge.nodes[1] === form_nodes[0].textContent)
-			);
-
-			if (edge_index !== -1) {
-				link_cost_update.push({
-					from: form_nodes[0].textContent,
-					to: form_nodes[1].textContent,
-					old_cost: edges[edge_index].cost,
-					new_cost: new_cost,
-				});
-				link_cost_update.push({
-					from: form_nodes[1].textContent,
-					to: form_nodes[0].textContent,
-					old_cost: edges[edge_index].cost,
-					new_cost: new_cost,
-				});
-				edges[edge_index].cost = new_cost;
-				visual_interface.update_edge(edges[edge_index]);
-			}
-		} else if (action === "delete") {
-			const new_cost = Number.POSITIVE_INFINITY;
-			// Find the corresponding edge in the edges array and remove it
-			const form_nodes = form.querySelectorAll("p");
-			const edge_index = edges.findIndex((edge) => 
-				(edge.nodes[0] === form_nodes[0].textContent && edge.nodes[1] === form_nodes[1].textContent) ||
-					(edge.nodes[0] === form_nodes[1].textContent && edge.nodes[1] === form_nodes[0].textContent)
-			);
-			if (edge_index !== -1) {
-				link_cost_update.push({
-					from: form_nodes[0].textContent,
-					to: form_nodes[1].textContent,
-					old_cost: edges[edge_index].cost,
-					new_cost: new_cost,
-				});
-				link_cost_update.push({
-					from: form_nodes[1].textContent,
-					to: form_nodes[0].textContent,
-					old_cost: edges[edge_index].cost,
-					new_cost: new_cost,
-				});
-				edges[edge_index].cost = new_cost;
-				form.remove();
-				visual_interface.update_edge(edges[edge_index]);
-			}
+		if (!existingVector || existingVector.date < vector.date) {
+			uniqueVectors[vector.from] = vector;
 		}
 	});
-});
-};
 
-const poison_reverse_selector = document.getElementById('poison_reverse');
-poison_reverse_selector.addEventListener('change', () => {
+	// Convert the object back to an array
+	const filteredVectors = Object.values(uniqueVectors);
+
+	return filteredVectors;
+}
+
+// From the table given, returns an array with all the nodes involved in the table
+function extract_nodes(table) {
+	const nodes = [];
+	for (const node in table) {
+		if (typeof table[node] === "object") {
+			nodes.push(...extract_nodes(table[node])); // Recursively extract keys from nested objects
+		} else {
+			nodes.push(node);
+		}
+	}
+	return nodes;
+}
+
+// If the received vector has more nodes than the vector of the node, then add the missing nodes with Infinity cost
+function increase_vector(table_node, table) {
+	const nodes = [...new Set(extract_nodes(table))];
+	nodes.forEach((node) => {
+		if (!table[table_node].hasOwnProperty(node)) {
+			table[table_node][node] = Number.POSITIVE_INFINITY; // Add missing keys with Infinity value
+		}
+	});
+}
+
+// Updates the vectors of the node table
+function update_vectors(vectors_table, vectors, node) {
+	vectors.forEach((packaged_vector) => {
+		let neighbor_node = packaged_vector.from;
+		let neighbor_vector = packaged_vector.vector;
+		vectors_table[neighbor_node] = neighbor_vector;
+		increase_vector(node, vectors_table);
+	});
+	visual_interface.update_table(node, vectors_table, vectors);
+}
+
+// Deep copy a object
+function deep_copy(object) {
+	let copy = Array.isArray(object) ? [] : {};
+	for (let key in object) {
+		let v = object[key];
+		if (v) {
+			if (typeof v === "object") {
+				copy[key] = deep_copy(v);
+			} else {
+				copy[key] = v;
+			}
+		} else {
+			copy[key] = v;
+		}
+	}
+	return copy;
+}
+
+// ======================== Forms ========================
+// ---- Modify Edges ----
+// Modify edges form button
+let modify_edges_form = false;
+document.getElementById("modify_edges_forms").addEventListener("click", () => {
+	if (modify_edges_form) {
+		document.getElementById("full_screen").style.display = "none";
+		modify_edges_form = false;
+	} else {
+		document.getElementById("full_screen").style.display = "block";
+		modify_edges_form = true;
+	}
+});
+
+// Modify edges form
+function modify_edges_forms() {
+	document.querySelectorAll(".change_edge_form").forEach((form) => {
+		form.addEventListener("submit", (event) => {
+			event.preventDefault(); // Prevent default form submission
+			const action = event.submitter.value; // Get the action (modify or delete)
+
+			if (action === "modify") {
+				const new_cost = parseInt(form.querySelector("input[name='cost']").value);
+
+				// Find the corresponding edge in the edges array and update its cost
+				const form_nodes = form.querySelectorAll("p");
+				const edge_index = edges.findIndex(
+					(edge) =>
+						(edge.nodes[0] === form_nodes[0].textContent && edge.nodes[1] === form_nodes[1].textContent) ||
+						(edge.nodes[0] === form_nodes[1].textContent && edge.nodes[1] === form_nodes[0].textContent),
+				);
+
+				if (edge_index !== -1) {
+					link_cost_update.push({
+						from: form_nodes[0].textContent,
+						to: form_nodes[1].textContent,
+						old_cost: edges[edge_index].cost,
+						new_cost: new_cost,
+					});
+					link_cost_update.push({
+						from: form_nodes[1].textContent,
+						to: form_nodes[0].textContent,
+						old_cost: edges[edge_index].cost,
+						new_cost: new_cost,
+					});
+					edges[edge_index].cost = new_cost;
+					visual_interface.update_edge(edges[edge_index]);
+				}
+			} else if (action === "delete") {
+				const new_cost = Number.POSITIVE_INFINITY;
+				// Find the corresponding edge in the edges array and remove it
+				const form_nodes = form.querySelectorAll("p");
+				const edge_index = edges.findIndex(
+					(edge) =>
+						(edge.nodes[0] === form_nodes[0].textContent && edge.nodes[1] === form_nodes[1].textContent) ||
+						(edge.nodes[0] === form_nodes[1].textContent && edge.nodes[1] === form_nodes[0].textContent),
+				);
+				if (edge_index !== -1) {
+					link_cost_update.push({
+						from: form_nodes[0].textContent,
+						to: form_nodes[1].textContent,
+						old_cost: edges[edge_index].cost,
+						new_cost: new_cost,
+					});
+					link_cost_update.push({
+						from: form_nodes[1].textContent,
+						to: form_nodes[0].textContent,
+						old_cost: edges[edge_index].cost,
+						new_cost: new_cost,
+					});
+					edges[edge_index].cost = new_cost;
+					form.remove();
+					visual_interface.update_edge(edges[edge_index]);
+				}
+			}
+		});
+	});
+}
+
+// Poison reverse selector
+const poison_reverse_selector = document.getElementById("poison_reverse");
+poison_reverse_selector.addEventListener("change", () => {
 	poison_reverse = poison_reverse_selector.value;
 });
 
-// ======================== Add/Delete Nodes ========================
-function delete_node_form () {
+// ---- Add/Delete Node ----
+// Add/Delete node form button
+let modify_node_form = false;
+document.getElementById("modify_nodes_forms").addEventListener("click", () => {
+	if (modify_node_form) {
+		document.getElementById("nodes_forms_full_screen").style.display = "none";
+		modify_node_form = false;
+	} else {
+		document.getElementById("nodes_forms_full_screen").style.display = "block";
+		modify_node_form = true;
+	}
+});
+
+// Delete node form
+function delete_node_form() {
 	document.getElementById("delete_node_form").addEventListener("submit", (event) => {
 		event.preventDefault(); // Prevent default form submission
 		const node = event.target.querySelector("select[name='node_name']").value;
@@ -405,10 +465,11 @@ function delete_node_form () {
 	});
 }
 
-function add_node_form () {
+// Add node form
+function add_node_form() {
 	document.getElementById("add_node_form").addEventListener("submit", (event) => {
 		event.preventDefault(); // Prevent default form submission
-		
+
 		// Gets the name of the new node
 		const node = event.target.querySelector("input[name='node_name']").value;
 		nodes.push(node);
@@ -431,83 +492,9 @@ function add_node_form () {
 		// Graph the new node
 		visual_interface.add_node(node, get_my_vectors_table(node), get_my_routing_table(node));
 		visual_interface.update_network(nodes, edges);
+		visual_interface.edges_forms(edges, nodes);
 
 		// Broadcast its vector as normal
 		broadcast_vector(get_my_vectors_table(node)[node], node);
 	});
 }
-// ======================== Extra ========================
-// Discards the repeated vectors (keeps the newest)
-function discard_repeated_old_vectors(vectors) {
-	const uniqueVectors = {};
-
-	vectors.forEach((vector) => {
-		const existingVector = uniqueVectors[vector.from];
-
-		if (!existingVector || existingVector.date < vector.date) {
-			uniqueVectors[vector.from] = vector;
-		}
-	});
-
-	// Convert the object back to an array
-	const filteredVectors = Object.values(uniqueVectors);
-
-	return filteredVectors;
-}
-
-// From the table given, returns an array with all the nodes involved in the table
-function extract_nodes(table) {
-	const nodes = [];
-	for (const node in table) {
-		if (typeof table[node] === 'object') {
-			nodes.push(...extract_nodes(table[node])); // Recursively extract keys from nested objects
-		} else {
-			nodes.push(node);
-		}
-	}
-	return nodes;
-}
-
-// If the received vector has more nodes than the vector of the node, then add the missing nodes with Infinity cost
-function increase_vector(table_node, table) {
-	const nodes = [...new Set(extract_nodes(table))];
-	nodes.forEach(node => {
-		if (!table[table_node].hasOwnProperty(node)) {
-			table[table_node][node] = Number.POSITIVE_INFINITY; // Add missing keys with Infinity value
-		}
-	});
-}
-
-// Updates the vectors of the node table
-function update_vectors(vectors_table, vectors, node) {
-	vectors.forEach((packaged_vector) => {
-		let neighbor_node = packaged_vector.from;
-		let neighbor_vector = packaged_vector.vector;
-		vectors_table[neighbor_node] = neighbor_vector;
-		increase_vector(node, vectors_table);
-	});
-	visual_interface.update_table(node, vectors_table, vectors);
-}
-
-// Modify edges form button
-let modify_edges_form = false;
-document.getElementById("modify_edges_forms").addEventListener("click", () => {
-	if (modify_edges_form) {
-		document.getElementById("full_screen").style.display = "none";
-		modify_edges_form = false;
-	} else {
-		document.getElementById("full_screen").style.display = "block";
-		modify_edges_form = true;
-	}
-});
-
-let modify_node_form = false;
-document.getElementById("modify_nodes_forms").addEventListener("click", () => {
-	if (modify_node_form) {
-		document.getElementById("nodes_forms_full_screen").style.display = "none";
-		modify_node_form = false;
-	} else {
-		document.getElementById("nodes_forms_full_screen").style.display = "block";
-		modify_node_form = true;
-	}
-});
